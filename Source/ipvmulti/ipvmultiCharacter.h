@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Blueprint/UserWidget.h" // Para usar UUserWidget
 #include "IpvmultiCharacter.generated.h"
 
 class USpringArmComponent;
@@ -49,7 +50,6 @@ public:
 	/** Property replication */
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
-
 protected:
 
 	/** Called for movement input */
@@ -57,9 +57,6 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
-
-protected:
 
 	virtual void NotifyControllerChanged() override;
 
@@ -85,44 +82,79 @@ public:
  
 	/** Event for taking damage. Overridden from APawn.*/
 	UFUNCTION(BlueprintCallable, Category = "Health")
-	float TakeDamage( float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser ) override;
+	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float MaxHealth;
  
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentHealth)
-	
 	float CurrentHealth;
  
 	UFUNCTION()
 	void OnRep_CurrentHealth();
+	
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Health")
 	void OnHealthUpdate();
 
 	UPROPERTY(EditDefaultsOnly, Category="Gameplay|Projectile")
 	TSubclassOf<class AThirdPersonMPProjectile> ProjectileClass;
  
-	/** Delay between shots in seconds. Used to control fire rate for your test projectile, but also to prevent an overflow of server functions from binding SpawnProjectile directly to input.*/
 	UPROPERTY(EditDefaultsOnly, Category="Gameplay")
 	float FireRate;
  
-	/** If true, you are in the process of firing projectiles. */
 	bool bIsFiringWeapon;
- 
-	/** Function for beginning weapon fire.*/
+
 	UFUNCTION(BlueprintCallable, Category="Gameplay")
 	void StartFire();
  
-	/** Function for ending weapon fire. Once this is called, the player can use StartFire again.*/
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StopFire();
  
-	/** Server function for spawning projectiles.*/
 	UFUNCTION(Server, Reliable)
 	void HandleFire();
  
-	/** A timer handle used for providing the fire rate delay in-between spawns.*/
 	FTimerHandle FiringTimer;
+
+	// ---------------------------
+	// AMMO SYSTEM (Replicated)
+	// ---------------------------
+
+public:
+	/** Getter for Current Ammo. */
+	UFUNCTION(BlueprintPure, Category="Ammo")
+	FORCEINLINE int32 GetCurrentAmmo() const { return CurrentAmmo; }
+
+	/** Getter for Max Ammo. */
+	UFUNCTION(BlueprintPure, Category="Ammo")
+	FORCEINLINE int32 GetMaxAmmo() const { return MaxAmmo; }
+
+	virtual void BeginPlay() override;
+
+
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentAmmo, VisibleAnywhere, BlueprintReadOnly, Category="Ammo")
+	int32 CurrentAmmo = 5;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Ammo")
+	int32 MaxAmmo = 5;
+
+	UFUNCTION()
+	void OnRep_CurrentAmmo();
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> AmmoWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* AmmoWidgetInstance;
+
+	UPROPERTY()
+	UUserWidget* AmmoUIRef;
+	
+	UFUNCTION(BlueprintCallable, Category = "Ammo")
+	void ReplenishAmmo(int32 AmmoAmount);
+
 };
+
+
 
